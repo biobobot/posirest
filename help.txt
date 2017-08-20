@@ -1,30 +1,23 @@
-Wellcome to simple area service
-
 Examples:
 
--curcle area:
+-circle area:
 request 
-	http://localhost:8080/circle/2
+	http://localhost:8080/circle/radius/2
 response 
-	{"status": "success", "result": {"area": 12.566370614359172, "radius": 2.0, "shape": "circle"}}	
+	{"result":{"shape":"curcle","radius":"2","area":6.283185307179586},"status":"success"}
 
--curcle area by diameter:
+-circle area via diameter:
 request 
-	http://loaclhost:8080/circ/2?d
+	http://localhost:8080/circle/diameter/2
 response
-	{"status": "success", "result": {"area": 6.283185307179586, "diameter": 2.0, "shape": "circle"}}
+	{"result":{"shape":"circle","diameter":"2","area":12.566370614359172},"status":"success"}
 
 -rectangle area:
 request
-	http://loaclhost:8080/rect/2/3
+	http://localhost:8080/rectangle/width/2/height/3
 response 
-	{"status": "success", "result": {"width": 2.0, "height": 3.0, "shape": "rectangle", "area": 6.0}}
+	{"result":{"shape":"rectangle","width":"2","height":"3","area":6.0},"status":"success"}
 
--square area
-request
-	http://localhost:8080/rectangle/2
-response 
-	{{"status": "success", "result": {"side": 2.0, "shape": "square", "area": 4.0}}
 
 
 

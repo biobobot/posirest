@@ -3,12 +3,13 @@ import http.client as client
 import os
 
 class Tester:
-	valid=[
-	'0',
-	'2', 
-	'2.2',
-	'%32',
-	'87486635647389820987352773527192\
+	
+	V = [
+		'0',
+		'2', 
+		'2.2',
+		'%32',
+		'87486635647389820987352773527\
 6693645281209321738712893721897381\
 2637346522334456678809876543564765\
 8729849090910939898748663564738982\
@@ -23,254 +24,292 @@ class Tester:
 4771788276354738291918836361387129\
 8739281739827138972139872198321983\
 7129873987439874436587346587671263\
-871263871263871254653754',
+871263871263871254653754192223456',
 	'2e+2'
 	]
-	invalid =[
-	'2,2',
-	'-2',
-	'string',
-	'@&:()%$~?^'
+	I = [
+		'2,2',
+		'-2',
+		'string',
+		'@&:()%$~?^'
 	]
-	unsupported = [
-	'POST',
-	'DELETE',
-	'OPTIONS',
-	'TRACE'
+	CV = [
+		'radius',
+		'diameter'
 	]
-
+	IP	=	[
+		'invalid',
+		'another_one'
+	]
+	RV = [
+		'width',
+		'height'
+	]
+	M =	[
+		'POST',
+		'DELETE',
+		'TRACE',
+		'OPTIONS'
+	]		
 	DELIMITER = '------------------------------------'
-	host = 'localhost'
 	total_tests_count = 0
-	failed_tests_count = 0
-	failed_uris = []
-	
+	failed_uris = []	
 
-	def start(self):
-		self.f = open(os.path.join(os.path.dirname(__file__), 'testmyrest.log'), 'w')		
-
-	def finish(self):	
-		self.f.close()
-
-	def notify(self, mess):
-		print(mess)
-		if self.f:
-			self.f.write(mess+'\n')
-	
-	def prepare_value(self, value):
-		if len(value)>20:
-			return '~big~'
-		if not value:
-			return '~empty~'
-		return value
-
-	def prepare_uri(self, values, get_params, simplify):
-		uri =''
-		for v in values:
-			if simplify:
-				v = self.prepare_value(v)
-			uri += ('/'+v)
-		if get_params:
-			uri += get_params
+	@staticmethod
+	def uri(elements):
+		uri = ''
+		for e in elements:
+			uri += ('/' + e)
 		return uri
 
-	def make_request(self, method, uri):
-		connection = client.HTTPConnection(self.host)
+	@staticmethod
+	def request(host, method, uri):
+		connection = client.HTTPConnection(host)
 		connection.request(method, uri)
 		response = connection.getresponse()
 		connection.close()
 		return response
-
-	def get_json_result(self, response, result):
-		if response.status != 200:
-			result['what'].append('service returns '+ str(response.status))
+ 
+	@staticmethod
+	def fill_json(response,result):
+		body_bytes = response.read()
+		body_string = body_bytes.decode('utf-8')			
 		try:
-			body_bytes = response.read()
-			body_string = body_bytes.decode('utf-8')
-			result['response'] = json.loads(body_string)
+			result['response'] = json.loads(body_string) 
 			return True
 		except:
-			result['what'].append('response is not JSON object')
-		return False
-
-	def check_result(self, response, result, status):
-		if not self.get_json_result(response,result):
+			result['response'] = body_string
 			return False
-		if 'status'not in result['response']:
-			result['what'].append('response do not contains status field')
-		else:
-			if result['response']['status'] != ('success' if status else 'fault'):
-				result['what'].append('response contains '+result['response']['status']+' status')
-			if result['response']['status'] == 'success':
-				if 'result'not in result['response']:
-					result['what'].append('response do not contains result field')
-				else:
-					if 'shape'not in result['response']['result']:
-						result['what'].append('result do not contains shape field')
-					if 'area'not in result['response']['result']:
-						result['what'].append('result do not contains area field')
-			else:
-				if 'errors'not in result['response']:
-					result['what'].append('response do not contains errors field')
-		return not len(result['what'])
 
-	def make_test(self, method, shape, values, get_params, status):
-		uri = self.prepare_uri(values,get_params,False)
-		response = self.make_request(method,uri)
+	@staticmethod	
+	def check_code(response, result, params):	
+		if 'HTTP_status' not in params:
+			result['errors'].append('test params does not contains HTTP_status')
+			return False
+		if params['HTTP_status'] != response.status:
+			result['errors'].append('waiting code ' + str(params['HTTP_status']) + ' but service returns ' + str( response.status))				
+			return False
+		return True
+
+	@staticmethod
+	def check_is_json(response, result, params):
+		if not Tester.fill_json(response,result):
+			result['errors'].append('response is not json object')
+			return False
+		return True
+
+	@staticmethod	
+	def check_is_valid_json(response, result, params):
+		if not Tester.check_is_json(response, result, params):
+			return False
+		if 'status' not in result['response']:
+			result['errors'].append('response does not contains status field')
+			return False
+		if 'result' not in result['response'] and 'errors' not in result['response'] :
+			result['errors'].append('response does not contains result or error field')
+			return False
+		return True
+	
+	@staticmethod
+	def check_json_status(response, result, params):
+		if not Tester.check_is_valid_json(response, result, params):
+			return False
+		if 'JSON_status' not in params:
+			result['errors'].append('test params does not contains JSON_status')
+			return False	
+		if result['response']['status'] != params['JSON_status']:
+			result['errors'].append('response is not '+ params['JSON_status'] + ' status')
+			return False	
+		return True	
+					
+	@staticmethod
+	def check_shape(response, result, params):
+		if 'shape' not in params:
+			result['errors'].append('test params does not contains shape field')
+			return False
+		if 'shape' not in result['response']['result']:
+			result['errors'].append('response does not contains shape field')
+			return False
+		if result['response']['result']['shape'] != params['shape']:
+			result['errors'].append('waiting shape ' + str(params['shape']) + ' but service returns ' + str(result['response']['result']['shape']))				
+			return False
+		return True	
+		
+	@staticmethod
+	def check_response(response, result, params):
+		if not Tester.check_code(response, result, params):
+			return False
+		if not Tester.check_json_status(response, result, params):
+			return False
+		if params['JSON_status'] == 'success':
+			if not Tester.check_shape(response, result, params): 
+				return False
+		return True
+
+	@staticmethod	
+	def make_test(host, method, uri, params, checker):
 		result = {}
-		result['what'] = []
-		sucsess = self.check_result(response, result, status)
-		if sucsess and status:
-			if result['response']['result']['shape'] != shape:
-				result['what'].append(result['response']['result']['shape'] +" is not valid shape" )
-		result['status'] = 'ok' if not len(result['what']) else 'fail'
-		if 'response' in result and 'errors' in result['response']:
+		result['errors'] = []
+		response = Tester.request(host, method, uri)
+		Tester.total_tests_count += 1		
+		if checker and checker(response, result, params):
+			result['status'] = 'ok'
+		else:
+			result['status'] = 'fail'	
+			Tester.failed_uris.append(uri)	
+			
+		
+		print(Tester.DELIMITER)
+		print(' %-5s ! %s: %s' % (result['status'], method, (uri[1:70] + '...') if len(uri) > 70 else uri))
+		print(Tester.DELIMITER)
+		for e in result['errors']:
+			print('^   ' + e)	
+		if 'response' in result and 'errors' in result['response']:	
 			for e in result['response']['errors']:
-					result['what'].append(e)
-		self.total_tests_count += 1;
-		if result['status'] == 'fail':
-			self.failed_tests_count += 1
-			self.failed_uris.append(self.prepare_uri(values, get_params,True))
+				print('^   ' + e)
+		return result;
+	
+	@staticmethod	
+	def test1(host):
+		'''Check service is available'''
+		Tester.make_test(host,'GET', Tester.uri(['/']), {'HTTP_status':200}, Tester.check_code)
+	
+	@staticmethod		
+	def test2(host):
+		'''***Circle area via valid names and valid values of parameters***'''
+		for param in Tester.CV:
+			for value in Tester.V:
+				Tester.make_test(host,'GET', Tester.uri(['circle', param, str(value)]), {'HTTP_status':200, 'JSON_status':'success', 'shape':'circle'}, Tester.check_response)
+									
+	@staticmethod		
+	def test3(host):
+		'''***Circle area via valid names and invalid values of parameters***'''
+		for param in Tester.CV:
+			for value in Tester.I:
+				Tester.make_test(host,'GET', Tester.uri(['circle', param, str(value)]), {'HTTP_status':404, 'JSON_status':'fault'}, Tester.check_response)
 
-		self.notify(self.DELIMITER)
-		self.notify(' %-5s ! %s: %s' % (result['status'], method, self.prepare_uri(values,get_params,True)))
-		self.notify_explanation(result['what'])
-		self.notify(self.DELIMITER)
+	@staticmethod		
+	def test4(host):
+		'''***Circle area via invalid names and valid values of parameters***'''
+		for param in Tester.IP:
+			for value in Tester.V:
+				Tester.make_test(host,'GET', Tester.uri(['circle', param, str(value)]), {'HTTP_status':404, 'JSON_status':'fault'}, Tester.check_response)
+		
+	@staticmethod		
+	def test5(host):
+		'''***Circle area via extra parameters***'''
+		for param in Tester.CV:		
+			Tester.make_test(host,'GET', Tester.uri(['circle', param, '2/3']), {'HTTP_status':404, 'JSON_status':'fault'}, Tester.check_response)		
+	
+	@staticmethod		
+	def test6(host):
+		'''***Circle area via insufficient parameters***'''
+		for param in Tester.CV:		
+			Tester.make_test(host,'GET', Tester.uri(['circle', param]), {'HTTP_status':404, 'JSON_status':'fault'}, Tester.check_response)
 
-	def	notify_explanation(self, what):
-		if len(what):
-			self.notify(self.DELIMITER)
-			for w in what:
-				self.notify('. ' + w)
+	@staticmethod		
+	def test7(host):
+		'''***Rectangle area via valid names and valid values of parameters***'''
+		for param1 in Tester.RV:	
+			for param2 in Tester.RV:
+				for value1 in Tester.V:
+					for value2 in Tester.V:
+						if param1 != param2:
+							Tester.make_test(host,
+															'GET', 
+															Tester.uri(['rectangle', param1, str(value1), param2, str(value2)]), 
+															{'HTTP_status':200, 'JSON_status':'success','shape':'rectangle'}, 
+															Tester.check_response)
 
-	class Tests:
+	@staticmethod		
+	def test8(host):
+		'''***Rectangle area via valid names and valid invalues of parameters***'''
+		for param1 in Tester.RV:	
+			for param2 in Tester.RV:
+				for value1 in Tester.I:
+					for value2 in Tester.I:
+						Tester.make_test(host,
+														'GET', 
+														Tester.uri(['rectangle', param1, str(value1), param2, str(value2)]), 
+														{'HTTP_status':404, 'JSON_status':'fault'}, 
+														Tester.check_response)	
 
-		@staticmethod
-		def test_circle_by_valid_radius(tester):
-			'''Circle by valid radius'''
-			for v in tester.valid:
-			 result = tester.make_test('GET', 'circle', ['circle', v], '', True)
+	@staticmethod		
+	def test9(host):
+		'''***Rectangle area via invalid names and valid values of parameters***'''
+		for param1 in Tester.IP:	
+			for param2 in Tester.IP:
+				for value1 in Tester.V:
+					for value2 in Tester.V:
+						Tester.make_test(host,
+														'GET', 
+														Tester.uri(['rectangle', param1, str(value1), param2, str(value2)]), 
+														{'HTTP_status':404, 'JSON_status':'fault'}, 
+														Tester.check_response)	
 
-		@staticmethod
-		def test_circle_by_invalid_radius(tester):
-			'''Circle by invalid radius'''
-			for v in tester.invalid:
-				result = tester.make_test('GET', 'circle', ['circle', v], '', False)
+	@staticmethod		
+	def test10(host):
+		'''***Rectangle area via equal parameters names***'''
+		for param1 in Tester.RV:	
+			for param2 in Tester.RV:
+				if param1 == param2:
+					Tester.make_test(host,
+													'GET', 
+													Tester.uri(['rectangle', param1, str(Tester.V[0]), param2, str(Tester.V[0])]), 
+													{'HTTP_status':404, 'JSON_status':'fault'}, 
+													Tester.check_response)	
 
-		@staticmethod
-		def test_circle_by_valid_diameter(tester):
-			'''Circle by valid diameter'''
-			for v in tester.valid:
-				result = tester.make_test('GET', 'circle', ['circle', v], '?d', True)
 
-		@staticmethod
-		def test_circle_by_invalid_diameter(tester):
-			'''Circle by invalid diameter'''
-			for v in tester.invalid:
-				result = tester.make_test('GET', 'circle', ['circle', v], '?d', False)
+	@staticmethod		
+	def test11(host):
+		'''***Rectangle area via extra parameters***'''
+		for param1 in Tester.RV:	
+			for param2 in Tester.RV:
+				if param1 != param2:
+					Tester.make_test(host,
+													'GET', 
+													Tester.uri(['rectangle', param1, str(Tester.V[0]), param2, str(Tester.V[0]),str(Tester.V[0])]), 
+													{'HTTP_status':404, 'JSON_status':'fault'}, 
+													Tester.check_response)
 
-		@staticmethod
-		def test_circle_by_empty_radius(tester):
-			'''Circle by empty radius'''
-			result = tester.make_test('GET', 'circle', ['circle', '/'], '', False)
+	@staticmethod		
+	def test12(host):
+		'''***Rectangle area via insufficient parameters***'''
+		for param1 in Tester.RV:	
+			for param2 in Tester.RV:
+				Tester.make_test(host,
+												'GET', 
+												Tester.uri(['rectangle', param1, param2]), 
+												{'HTTP_status':404, 'JSON_status':'fault'}, 
+												Tester.check_response)
 
-		@staticmethod
-		def test_circle_by_empty_diameter(tester):
-			'''Circle by empty diameter'''
-			result = tester.make_test('GET','circle',['circle', '/'],'?d', False)
+	@staticmethod		
+	def test13(host):
+		'''***Check methods inavalable***'''
+		for method in Tester.M:	
+			Tester.make_test(host,
+											method, 
+											Tester.uri(['/']), 
+											{'HTTP_status':405, 'JSON_status':'fault'}, 
+											Tester.check_response)					
 
-		@staticmethod
-		def test_circle_by_valid_radius_with_additinal_get_params(tester):
-			'''Circle by valid radius with useless get params'''
-			for v in tester.valid:
-				result = tester.make_test('GET', 'circle', ['circle', v], '?param1=0&?param2=0', True)
-
-		@staticmethod
-		def test_circle_by_excess_data(tester):
-			'''Circle by empty diameter'''
-			result = tester.make_test('GET', 'circle', ['circle', '2', '3'], '?d', False)
-
-		@staticmethod
-		def test_square_by_valid_side(tester):
-			'''Rectangle by valid single side'''
-			for v in tester.valid:
-				result = tester.make_test('GET', 'square', ['rectangle', v], '', True)
-
-		@staticmethod
-		def test_square_by_invalid_side(tester):
-			'''Rectangle by invalid single side'''
-			for v in tester.invalid:
-				result = tester.make_test('GET', 'square', ['rectangle', v], '', False)
-
-		@staticmethod
-		def test_square_by_empty_side(tester):
-			'''Rectangle by empty single side'''
-			result = tester.make_test('GET', 'square', ['rectangle', '/'], '', False)
-
-		@staticmethod
-		def test_rectangle_by_valid_valid(tester):
-			'''Rectangle by valid valid values'''
-			for v1 in tester.valid:
-				for v2 in tester.valid:
-					result = tester.make_test('GET', 'rectangle',[ 'rectangle', v1, v2], '', True)
-
-		@staticmethod
-		def test_rectangle_by_valid_invalid(tester):
-			'''Rectangle by valid invalid values'''
-			for v1 in tester.valid:
-				for v2 in tester.invalid:
-					result = tester.make_test('GET', 'rectangle', ['rectangle', v1, v2], '', False)
-
-		@staticmethod
-		def test_rectangle_by_invalid_valid(tester):
-			'''Rectangle by invalid valid values'''
-			for v1 in tester.invalid:
-				for v2 in tester.valid:
-					result = tester.make_test('GET', 'rectangle', ['rectangle', v1, v2], '', False)
-
-		@staticmethod
-		def test_rectangle_by_invalid_invalid(tester):
-			'''Rectangle by invalid invalid values'''
-			for v1 in tester.invalid:
-				for v2 in tester.invalid:
-					result = tester.make_test('GET', 'rectangle' ,['rectangle', v1, v2], '', False)
-
-		@staticmethod
-		def test_rectangle_by_excess_data(tester):
-			'''Rectangle by empty diameter'''
-			result = tester.make_test('GET', 'rectangle', ['rectangle', '2', '3', '4'] ,'?d', False)
-
-		@staticmethod
-		def test_unsupported(tester):
-			'''Unsupported methods'''
-			for u in tester.unsupported:
-					result = tester.make_test(u, '', [], '', False)
+	
 
 def main():
-	'''
-	Testing now is started
-	'''
+	host = 'localhost:8080'
+	for field in dir(Tester):
+		if field.startswith('test'):
+			test = getattr(Tester, field)
+			print(test.__doc__)
+			test(host)
+			print('\n')
+	for fail in Tester.failed_uris:
+		print(fail)
+	print('\n')
+	print(' TOTAL: %s' % (Tester.total_tests_count))
+	print(' FAILED: %s' % (len(Tester.failed_uris)))
 	
 	
-	tester = Tester()
-	tester.start()	
-	tester.host = 'localhost:8080' 
-	tester.notify(main.__doc__)
-
-	for feild in dir(tester.Tests):
-		if feild.startswith('test'):
-			test = getattr(tester.Tests, feild)
-			tester.notify(test.__doc__)
-			test(tester) 
-			tester.notify('\n')
-
-	tester.notify(' TOTAL: %s' % (tester.total_tests_count))
-	tester.notify(' FAILED: %s' % (tester.failed_tests_count))
-
-	for fail in tester.failed_uris:
-		tester.notify("   ."+fail)
-	
-	tester.finish()
 
 if __name__ == "__main__":
 	main()

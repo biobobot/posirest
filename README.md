@@ -12,7 +12,7 @@ Just follow instructions you have recived in browser
 Testing
 ---------------
 In another terminal window type python3 testmyrest.py
-You can see in your terminal tests  is running
+You can see in your terminal how tests  is running
 See report near in directory in "testmyrest.log" file 
 
 
