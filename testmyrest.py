@@ -206,7 +206,7 @@ class Tester:
 	def test5(host):
 		'''***Circle area via extra parameters***'''
 		for param in Tester.CV:		
-			Tester.make_test(host,'GET', Tester.uri(['circle', param, '2/3']), {'HTTP_status':404, 'JSON_status':'fault'}, Tester.check_response)		
+			Tester.make_test(host,'GET', Tester.uri(['circle', param, str(Tester.V[0]),str(Tester.V[1])]), {'HTTP_status':404, 'JSON_status':'fault'}, Tester.check_response)		
 	
 	@staticmethod		
 	def test6(host):
