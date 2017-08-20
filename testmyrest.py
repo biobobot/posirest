@@ -235,11 +235,12 @@ class Tester:
 			for param2 in Tester.RV:
 				for value1 in Tester.I:
 					for value2 in Tester.I:
-						Tester.make_test(host,
-														'GET', 
-														Tester.uri(['rectangle', param1, str(value1), param2, str(value2)]), 
-														{'HTTP_status':404, 'JSON_status':'fault'}, 
-														Tester.check_response)	
+						if param1 != param2:
+							Tester.make_test(host,
+															'GET', 
+															Tester.uri(['rectangle', param1, str(value1), param2, str(value2)]), 
+															{'HTTP_status':404, 'JSON_status':'fault'}, 
+															Tester.check_response)	
 
 	@staticmethod		
 	def test9(host):
