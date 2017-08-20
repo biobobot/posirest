@@ -39,7 +39,7 @@ def circle(params):
 	result = {
 		'status' : 'success',
 		'result' :{
-			#'shape'			: 'circle',
+			'shape'			: 'circle',
 			param_name	: param_value,
 			'area'			: factor * value
 		}

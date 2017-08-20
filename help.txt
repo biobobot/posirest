@@ -4,13 +4,13 @@ Examples:
 request 
 	http://localhost:8080/circle/radius/2
 response 
-	{"result":{"shape":"curcle","radius":"2","area":6.283185307179586},"status":"success"}
+	{"result":{"shape":"circle","radius":"2","area":6.283185307179586},"status":"success"}
 
 -circle area via diameter:
 request 
 	http://localhost:8080/circle/diameter/2
 response
-	{"result":{"shape":"circle","diameter":"2","area":12.566370614359172},"status":"success"}
+	{"result":{"shape":"circle","area":12.566370614359172,"diameter":"2"},"status":"success"}
 
 -rectangle area:
 request
