@@ -1,6 +1,5 @@
-import json
+import json, getopt, os, sys
 import http.client as client
-import os
 
 class Tester:
 	
@@ -53,7 +52,9 @@ class Tester:
 	]		
 	DELIMITER = '------------------------------------'
 	total_tests_count = 0
+	failed_tests_count = 0
 	failed_uris = []	
+	log_file = None	
 
 	@staticmethod
 	def uri(elements):
@@ -150,23 +151,29 @@ class Tester:
 	def make_test(host, method, uri, params, checker):
 		result = {}
 		result['errors'] = []
-		response = Tester.request(host, method, uri)
-		Tester.total_tests_count += 1		
-		if checker and checker(response, result, params):
-			result['status'] = 'ok'
-		else:
-			result['status'] = 'fail'	
-			Tester.failed_uris.append(uri)	
+		Tester.total_tests_count += 1	
+		try:
+			response = Tester.request(host, method, uri)	
+			if checker and checker(response, result, params):
+				result['status'] = 'ok'
+			else:
+				result['status'] = 'fail'	
+				Tester.failed_uris.append(uri)
+				Tester.failed_tests_count += 1	
+		except:
+			result['status'] = 'fail'
+			result['errors'].append('host is not available')	
+			Tester.failed_tests_count += 1	
 			
 		
-		print(Tester.DELIMITER)
-		print(' %-5s ! %s: %s' % (result['status'], method, (uri[1:70] + '...') if len(uri) > 70 else uri))
-		print(Tester.DELIMITER)
+		Tester.notify(Tester.DELIMITER)
+		Tester.notify(' %-5s ! %s: %s' % (result['status'], method, (uri[1:70] + '...') if len(uri) > 70 else uri))
+		Tester.notify(Tester.DELIMITER)
 		for e in result['errors']:
-			print('^   ' + e)	
+			Tester.notify('^   ' + e)	
 		if 'response' in result and 'errors' in result['response']:	
 			for e in result['response']['errors']:
-				print('^   ' + e)
+				Tester.notify('^   ' + e)
 		return result;
 	
 	@staticmethod	
@@ -291,25 +298,41 @@ class Tester:
 											method, 
 											Tester.uri(['/']), 
 											{'HTTP_status':405, 'JSON_status':'fault'}, 
-											Tester.check_response)					
+											Tester.check_response)	
+
+	@staticmethod		
+	def notify(mess):
+		print(mess)
+		if Tester.log_file:
+			Tester.log_file.write(mess+'\n')		
 
 	
 
 def main():
+	log_file_name = os.path.join(os.path.dirname(__file__), 'testmyrest.log')
 	host = 'localhost:8080'
+	try:
+		optlist, args = getopt.getopt(sys.argv[1:], 'H:')
+		if len(args):
+			log_file_name = args[0]
+		if optlist and optlist[0][1]:
+			host = optlist[0][1]
+	except:
+		print('usage: python3 testmyrest.py -H <host> <log_file_name>')	
+		return
+
+	Tester.log_file = open(log_file_name, 'w')
 	for field in dir(Tester):
 		if field.startswith('test'):
 			test = getattr(Tester, field)
-			print(test.__doc__)
+			Tester.notify(test.__doc__)
 			test(host)
-			print('\n')
+			Tester.notify('\n')
 	for fail in Tester.failed_uris:
-		print(fail)
-	print('\n')
-	print(' TOTAL: %s' % (Tester.total_tests_count))
-	print(' FAILED: %s' % (len(Tester.failed_uris)))
-	
-	
+		Tester.notify(fail)
+	Tester.notify('\n')
+	Tester.notify(' TOTAL: %s' % (Tester.total_tests_count))
+	Tester.notify(' FAILED: %s' % (Tester.failed_tests_count))
 
 if __name__ == "__main__":
 	main()
